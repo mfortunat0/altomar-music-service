@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Response, Router } from "express";
 import { hash, compare } from "bcrypt";
 import { PrismaClient } from "@prisma/client";
 
@@ -10,11 +10,13 @@ const createNewUser = async ({
   email,
   birthDay,
   password,
+  response,
 }: {
   name: string;
   email: string;
   birthDay: string;
   password: string;
+  response: Response;
 }) => {
   try {
     await prisma.user.create({
@@ -27,6 +29,7 @@ const createNewUser = async ({
     });
   } catch (error) {
     console.log(error);
+    response.status(400).json({ error });
   } finally {
     await prisma.$disconnect();
   }
@@ -42,6 +45,13 @@ userRouter.post("/", async (req, res) => {
     return;
   }
 
+  const userExists = await verifyUserExists({ email });
+
+  if (userExists) {
+    res.status(400).send();
+    return;
+  }
+
   const passwordHash = await hash(password + SALT_TEXT, SALT);
 
   await createNewUser({
@@ -49,6 +59,7 @@ userRouter.post("/", async (req, res) => {
     email,
     birthDay,
     password: passwordHash,
+    response: res,
   });
 
   res.status(201).send();
